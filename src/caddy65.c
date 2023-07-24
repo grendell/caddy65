@@ -17,7 +17,6 @@ const int pedantic = 0;
 
 char scratch[4096];
 int indentionSize;
-int baseIndentAmount;
 
 #define spacing "([[:space:]]*)"
 #define comment spacing ";" spacing "(.?)"
@@ -405,7 +404,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
 
                 if (s1 != 1 || s4 != 1) {
                     sprintf(scratch, "%.*s %.*s %s",
-                        (int)match[1].rm_so, source,
+                        (int) match[1].rm_so, source,
                         s2, source + match[2].rm_so,
                         source + match[4].rm_eo);
                     strcpy(source, scratch);
