@@ -33,9 +33,10 @@ int indentionSize;
 #define closeParen spacing "[)]" spacing
 #define comma spacing "," spacing
 
-#define operator "(<<|>>|<>|<=|>=|&&|[|][|]|"\
+#define operator "([(]*)(<<|>>|<>|<=|>=|&&|[|][|]|"\
                  "[-+*\\/&|^=<>]|"\
-                 "[.](mod|bitand|bitor|bitxor|shl|shr|and|or|xor))"
+                 "[.](set|mod|bitand|bitor|bitxor|shl|shr|and|or|xor))" spacing \
+                 "(<<|>>|<>|<=|>=|&&|[|][|]|[-+*\\/&|^=<>]|[.](mod|bitand|bitor|bitxor|shl|shr|and|or|xor))?"
 
 #define argStart "([$%\"_[:alnum:]])"
 #define control "[.]([[:alpha:]][[:alnum:]]*)" spacing argStart "?"
@@ -373,7 +374,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                 }
 
                 if (inQuote) {
-                    char * next = source + match[2].rm_eo;
+                    char * next = source + match[3].rm_eo;
                     while (*next && *next != '"') {
                         ++next;
                     }
@@ -387,10 +388,10 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                 }
 
                 result_t result = compliant;
-                int s3 = matchLength(3);
+                int s4 = matchLength(4);
 
-                if (s3) {
-                    for (int i = match[3].rm_so; i < match[3].rm_eo; ++i) {
+                if (s4) {
+                    for (int i = match[4].rm_so; i < match[4].rm_eo; ++i) {
                         if (isupper(source[i])) {
                             source[i] = tolower(source[i]);
                             result = applied;
@@ -399,19 +400,21 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                 }
 
                 int s1 = matchLength(1); /* start spacing */
-                int s2 = matchLength(2); /* operator */
-                int s4 = matchLength(4); /* end spacing */
+                int s2 = matchLength(2); /* open bracket */
+                int s3 = matchLength(3); /* operator */
+                int s5 = matchLength(5); /* end spacing */
+                int s6 = matchLength(6); /* another operator following first operator with only spacing */
 
-                if (s1 != 1 || s4 != 1) {
+                if ((s1 != 1 || s5 != 1) && s2 == 0) {
                     sprintf(scratch, "%.*s %.*s %s",
                         (int) match[1].rm_so, source,
-                        s2, source + match[2].rm_so,
-                        source + match[4].rm_eo);
+                        s3, source + match[3].rm_so,
+                        source + match[5].rm_eo);
                     strcpy(source, scratch);
                     result = applied;
                 }
 
-                result_t next = applyRule(rule, source + match[1].rm_so + s2 + 1, regex);
+                result_t next = applyRule(rule, source + match[1].rm_so + s3 + s6 + 1, regex);
                 return next > result ? next : result;
             }
             case commaSpacing: {
