@@ -418,7 +418,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     strcpy(source, scratch);
                     result = applied;
                 }
-                
+
                 result_t next = applyRule(rule, source + match[1].rm_so + (1 - s3) + s2 + (s7 > 0) + s7, regex);
                 return next > result ? next : result;
             }
