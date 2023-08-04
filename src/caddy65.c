@@ -36,6 +36,7 @@ int indentionSize;
 #define operator "([-+*/&|^=<>]|"\
                  "<<|>>|<>|<=|>=|&&|[|][|]|"\
                  "[.](mod|bitand|bitor|bitxor|shl|shr|and|or|xor))"
+#define byteOperator spacing "([#][<>])" spacing
 
 #define argStart "([$%\"_[:alnum:]])"
 #define control "[.]([[:alpha:]][[:alnum:]]*)" spacing argStart "?"
@@ -67,6 +68,7 @@ typedef enum {
     openParenSpacing,
     closeParenSpacing,
     operatorFormatting,
+    byteOperatorFormatting,
     commaSpacing,
     controlCommand,
     macroDefinition,
@@ -96,6 +98,7 @@ const char * ruleNames[numRules] = {
     "openParenSpacing",
     "closeParenSpacing",
     "operatorFormatting",
+    "byteOperatorFormatting",
     "commaSpacing",
     "controlCommand",
     "macroDefinition",
@@ -123,7 +126,8 @@ const char * patterns[numRules] = {
     binaryLiteral,
     openParen,
     closeParen,
-    "[^:+-]" spacing operator spacing,
+    "[^(#:+-]" spacing operator spacing,
+    byteOperator,
     comma,
     control,
     macroDef,
@@ -410,7 +414,24 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     result = applied;
                 }
 
-                result_t next = applyRule(rule, source + match[2].rm_so + 1, regex);
+                result_t next = applyRule(rule, source + match[1].rm_so + s2 + 2, regex);
+                return next > result ? next : result;
+            }
+            case byteOperatorFormatting: {
+                result_t result = compliant;
+                int s1 = matchLength(1);
+                int s3 = matchLength(3);
+
+                if (s1 != 1 || s3) {
+                    sprintf(scratch, "%.*s %.*s%s",
+                        (int) match[1].rm_so, source,
+                        2, source + match[2].rm_so,
+                        source + match[2].rm_eo + 1);
+                    strcpy(source, scratch);
+                    result = applied;
+                }
+
+                result_t next = applyRule(rule, source + match[1].rm_so + 3, regex);
                 return next > result ? next : result;
             }
             case commaSpacing: {

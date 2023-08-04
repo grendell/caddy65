@@ -107,6 +107,13 @@ jmp :-------
 ; operators
   lda $00 + 4 ; +4
   sta $00+1
+  lda #1 <<  2
+  lda #$42  >> 3
+
+; byte operators
+  lda #> foo
+  ldx #<foo
+.define foofoo #<foo , #>foo  
 
 ; comma separated lists
   .byte $00, $01, $02, $03
@@ -140,6 +147,13 @@ var: .res 1
 sixteenBitVar: .res 2
   adc sixteenBitVar + 1
   adc var .shr 3
+
+; Movax12's test cases
+  lda #$42         & 1    +   3
+  test1 = *  +  1
+  test2 =  -1
+  test3 = ( * + 2 ) *  2
+  test4 = 3 + ( -test1 )
 
 .segment "CHARS"
 .incbin   "CHR-ROM.bin"

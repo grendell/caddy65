@@ -110,6 +110,12 @@ If neither of these features is used, caddy65 applies the following rules to eac
 ### Examples
 * `  adc sixteenBitVar + 1`
 * `  adc var .shr 3`
+## Byte Operator Formatting
+* Enforces one and only one space before byte operator.
+* Enforces no space after byte operator.
+### Examples
+* `  adc #>addr`
+* `  adc #<addr`
 ## Comma Spacing
 * Enforces no space before comma character.
 * Enforces one and only one space after comma character.
