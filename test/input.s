@@ -44,6 +44,7 @@ ldy #%10100011
 
 ; control commands
   .proc foo ; I know proc fu
+; .byte $00, $00, $00, $00
  .byte $00, $01, $02, $03
   rts
 .endproc  
@@ -109,6 +110,13 @@ jmp :-------
   sta $00+1
   lda #1 <<  2
   lda #$42  >> 3
+
+.linecont +
+.define jump_table\
+  bar-1,\
+  baz - 1, \
+   star - 1
+.linecont -
 
 ; byte operators
   lda #> foo

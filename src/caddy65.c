@@ -33,7 +33,7 @@ int indentionSize;
 #define closeParen spacing "[)]" spacing
 #define comma spacing "," spacing
 
-#define operator "([-+*/&|^=<>]|"\
+#define operator "([-+*/&|^=<>\\]|"\
                  "<<|>>|<>|<=|>=|&&|[|][|]|"\
                  "[.](mod|bitand|bitor|bitxor|shl|shr|and|or|xor))"
 #define byteOperator spacing "([#][<>])" spacing
@@ -126,7 +126,7 @@ const char * patterns[numRules] = {
     binaryLiteral,
     openParen,
     closeParen,
-    "[^(#:+-]" spacing operator spacing,
+    "[^(#:+-]" spacing operator spacing "([^[:space:]]?)",
     byteOperator,
     comma,
     control,
@@ -404,11 +404,13 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
 
                 int s1 = matchLength(1);
                 int s4 = matchLength(4);
+                int s5 = matchLength(5);
 
-                if (s1 != 1 || s4 != 1) {
-                    sprintf(scratch, "%.*s %.*s %s",
+                if (s1 != 1 || (s4 != 1 && s5) || (s4 && !s5)) {
+                    sprintf(scratch, "%.*s %.*s%.*s%s",
                         (int) match[1].rm_so, source,
                         s2, source + match[2].rm_so,
+                        s5, " ",
                         source + match[4].rm_eo);
                     strcpy(source, scratch);
                     result = applied;
@@ -925,7 +927,7 @@ int main(int argc, char ** argv) {
                     break;
                 }
                 case controlCommand: {
-                    if (result == compliant || result == applied) {
+                    if ((result == compliant || result == applied) && *source != ';') {
                         if (strncmp(source + 1, "asciiz",  6) == 0 ||
                             strncmp(source + 1, "addr",    4) == 0 ||
                             strncmp(source + 1, "byt",     3) == 0 ||
