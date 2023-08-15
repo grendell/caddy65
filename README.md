@@ -74,6 +74,8 @@ If neither of these features is used, caddy65 applies the following rules to eac
 * Enforces maximum of one blank line between source code.
 ## Tab Expansion
 * Converts all tab characters to the `indention` string (defaults to two spaces).
+## Bitwise Instruction
+* Applies special rules during Hexadecimal Literal Formatting when an `and`, `eor`, or `ora` instruction is found.
 ## Address Formatting
 * Enforces lowercase hexadecimal digits.
 * Enforces zero-padding to two or four digits.
@@ -83,9 +85,11 @@ If neither of these features is used, caddy65 applies the following rules to eac
 * `  adc $0742`
 ## Hexadecimal Literal Formatting
 * Enforces lowercase hexadecimal digits.
-* Trims zero-padding.
+* When operating on an `and`, `eor`, or `ora` instruction, enforces zero-padding to two or four digits.
+* When not operating on a Bitwise Instruction, trims zero-padding.
 ### Examples
 * `  adc #$f`
+* `  and #$0f`
 ## Binary Literal Formatting
 * Enforces eight digits.
 ### Examples

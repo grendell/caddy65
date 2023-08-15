@@ -96,6 +96,7 @@ buttons: .res 1       ; Pressed buttons (A|B|Sel|Start|Up|Dwn|Lft|Rgt)
 
 ; hex literals
   lda #$4
+  and #$04
   cmp #$42
   adc #$0
 

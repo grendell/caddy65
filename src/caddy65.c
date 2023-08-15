@@ -25,6 +25,8 @@ int indentionSize;
 #define trailingSpace spacing "$"
 #define tab "(\t)"
 
+#define bitwise "^(and|eor|ora)"
+
 #define address "[^#][$]([[:xdigit:]]+)"
 #define hexLiteral "[#][$]([[:xdigit:]]+)"
 #define binaryLiteral "[#][%]([01]{1,8})"
@@ -62,6 +64,7 @@ typedef enum {
     trimLeading,
     trimTrailing,
     tabExpansion,
+    bitwiseInstruction,
     addressFormatting,
     hexLiteralFormatting,
     binaryLiteralFormatting,
@@ -92,6 +95,7 @@ const char * ruleNames[numRules] = {
     "trimLeading",
     "trimTrailing",
     "tabExpansion",
+    "bitwiseInstruction",
     "addressFormatting",
     "hexLiteralFormatting",
     "binaryLiteralFormatting",
@@ -121,6 +125,7 @@ const char * patterns[numRules] = {
     leadingSpace,
     trailingSpace,
     tab,
+    bitwise,
     address,
     hexLiteral,
     binaryLiteral,
@@ -149,8 +154,9 @@ typedef enum {
     appendNewline = 1 << 0,
     prependIndention = 1 << 1,
     prependLabel = 1 << 2,
-    done = 1 << 3,
-    omit = 1 << 4,
+    bitwiseOperation = 1 << 3,
+    done = 1 << 4,
+    omit = 1 << 5,
 } flags_t;
 
 typedef enum {
@@ -216,7 +222,7 @@ void cleanup(FILE * input, FILE * output, regex_t * regex) {
     }
 }
 
-result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
+result_t applyRule(rule_t rule, char * const source, const flags_t flags, regex_t * regex) {
     regmatch_t match[16];
     int status = regexec(regex, source, 16, match, 0);
 
@@ -254,8 +260,11 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                 strcpy(source, scratch);
 
                 result_t result = applied;
-                result_t next = applyRule(rule, source + match[1].rm_so + indentionSize, regex);
+                result_t next = applyRule(rule, source + match[1].rm_so + indentionSize, flags, regex);
                 return next > result ? next : result;
+            }
+            case bitwiseInstruction: {
+                return compliant;
             }
             case addressFormatting: {
                 result_t result = compliant;
@@ -276,7 +285,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     result = applied;
                 }
 
-                result_t next = applyRule(rule, source + match[1].rm_so, regex);
+                result_t next = applyRule(rule, source + match[1].rm_so, flags, regex);
                 return next > result ? next : result;
             }
             case hexLiteralFormatting: {
@@ -289,20 +298,32 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     }
                 }
 
-                int offset = match[1].rm_so;
-                while (source[offset] == '0' && isxdigit(source[offset + 1])) {
-                    ++offset;
+                if (flags & bitwiseOperation) {
+                    int s1 = matchLength(1);
+
+                    if (s1 & 1) {
+                        sprintf(scratch, "%.*s0%s",
+                            (int) match[1].rm_so, source,
+                            source + match[1].rm_so);
+                        strcpy(source, scratch);
+                        result = applied;
+                    }
+                } else {
+                    int offset = match[1].rm_so;
+                    while (source[offset] == '0' && isxdigit(source[offset + 1])) {
+                        ++offset;
+                    }
+
+                    if (offset != match[1].rm_so) {
+                        sprintf(scratch, "%.*s%s",
+                            (int) match[1].rm_so, source,
+                            source + offset);
+                        strcpy(source, scratch);
+                        result = applied;
+                    }
                 }
 
-                if (offset != match[1].rm_so) {
-                    sprintf(scratch, "%.*s%s",
-                        (int) match[1].rm_so, source,
-                        source + offset);
-                    strcpy(source, scratch);
-                    result = applied;
-                }
-
-                result_t next = applyRule(rule, source + match[1].rm_so, regex);
+                result_t next = applyRule(rule, source + match[1].rm_so, flags, regex);
                 return next > result ? next : result;
             }
             case binaryLiteralFormatting: {
@@ -318,7 +339,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     result = applied;
                 }
 
-                result_t next = applyRule(rule, source + match[1].rm_so, regex);
+                result_t next = applyRule(rule, source + match[1].rm_so, flags, regex);
                 return next > result ? next : result;
             }
             case openParenSpacing: {
@@ -339,7 +360,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     result = applied;
                 }
 
-                result_t next = applyRule(rule, source + match[1].rm_eo + 1, regex);
+                result_t next = applyRule(rule, source + match[1].rm_eo + 1, flags, regex);
                 return next > result ? next : result;
             }
             case closeParenSpacing: {
@@ -360,7 +381,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     result = applied;
                 }
 
-                result_t next = applyRule(rule, source + match[1].rm_eo + 1, regex);
+                result_t next = applyRule(rule, source + match[1].rm_eo + 1, flags, regex);
                 return next > result ? next : result;
             }
             case operatorFormatting: {
@@ -383,7 +404,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     }
 
                     if (*next) {
-                        return applyRule(rule, next, regex);
+                        return applyRule(rule, next, flags, regex);
                     }
 
                     fprintf(stderr, "rule %d failed to parse quoted section\n", rule);
@@ -416,7 +437,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     result = applied;
                 }
 
-                result_t next = applyRule(rule, source + match[1].rm_so + s2 + 2, regex);
+                result_t next = applyRule(rule, source + match[1].rm_so + s2 + 2, flags, regex);
                 return next > result ? next : result;
             }
             case byteOperatorFormatting: {
@@ -433,7 +454,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     result = applied;
                 }
 
-                result_t next = applyRule(rule, source + match[1].rm_so + 3, regex);
+                result_t next = applyRule(rule, source + match[1].rm_so + 3, flags, regex);
                 return next > result ? next : result;
             }
             case commaSpacing: {
@@ -454,7 +475,7 @@ result_t applyRule(rule_t rule, char * const source, regex_t * regex) {
                     result = applied;
                 }
 
-                result_t next = applyRule(rule, source + match[1].rm_eo + 1, regex);
+                result_t next = applyRule(rule, source + match[1].rm_eo + 1, flags, regex);
                 return next > result ? next : result;
             }
             case controlCommand: {
@@ -895,7 +916,7 @@ int main(int argc, char ** argv) {
                 continue;
             }
 
-            result_t result = applyRule(i, source, regex + i);
+            result_t result = applyRule(i, source, flags, regex + i);
             if (result == error) {
                 cleanup(input, output, regex);
                 return 1;
@@ -923,6 +944,12 @@ int main(int argc, char ** argv) {
                         }
                     } else {
                         prevLineBlank = 0;
+                    }
+                    break;
+                }
+                case bitwiseInstruction: {
+                    if (result == compliant || result == applied) {
+                        flags |= bitwiseOperation;
                     }
                     break;
                 }

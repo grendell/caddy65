@@ -97,6 +97,7 @@ jmp :-------
 
 ; hex literals
   lda #$04
+and #$4
   cmp  #$42
  adc #$0
 
